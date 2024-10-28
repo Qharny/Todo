@@ -4,30 +4,32 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:todo/screens/splash.dart';
 import 'models/category.dart';
+import 'models/priority.dart';
 import 'models/task.dart';
+import 'models/task_filter.dart';
 import 'screens/home.dart';
 import 'theme/theme.dart';
-
-
 
 late SharedPreferences prefs;
 
 void main() async {
   try {
-    // Ensure Flutter bindings are initialized
     WidgetsFlutterBinding.ensureInitialized();
+  // await initHive();
 
     // Initialize SharedPreferences
     prefs = await SharedPreferences.getInstance();
 
     // Initialize Hive
-    final appDocumentDirectory = 
+    final appDocumentDirectory =
         await path_provider.getApplicationDocumentsDirectory();
     await Hive.initFlutter(appDocumentDirectory.path);
 
     // Register Hive Adapters
-    Hive.registerAdapter(TaskAdapter());
     Hive.registerAdapter(CategoryAdapter());
+    Hive.registerAdapter(PriorityAdapter());
+    Hive.registerAdapter(TaskAdapter());
+    Hive.registerAdapter(TaskFilterAdapter());
 
     // Open Hive Boxes
     await Hive.openBox('tasks');
@@ -50,7 +52,7 @@ class Todo extends StatelessWidget {
       valueListenable: Hive.box('settings').listenable(),
       builder: (context, Box settingsBox, child) {
         bool isDarkMode = settingsBox.get('darkMode', defaultValue: false);
-        
+
         return MaterialApp(
           title: 'TaskMana',
           debugShowCheckedModeBanner: false,

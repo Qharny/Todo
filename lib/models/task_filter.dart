@@ -1,16 +1,16 @@
 import 'package:hive/hive.dart';
-import 'package:todo/models/category.dart';
-import 'package:todo/models/task.dart';
+import 'priority.dart';
+import 'task.dart';
 
 part 'task_filter.g.dart';
 
-@HiveType(typeId: 3)
+@HiveType(typeId: 4)
 class TaskFilter extends HiveObject {
   @HiveField(0)
   String name;
 
   @HiveField(1)
-  List<String> categoryIds;
+  List<dynamic> categoryKeys;
 
   @HiveField(2)
   List<Priority> priorities;
@@ -29,80 +29,46 @@ class TaskFilter extends HiveObject {
 
   TaskFilter({
     required this.name,
-    List<String>? categoryIds,
+    List<dynamic>? categoryKeys,
     List<Priority>? priorities,
     this.showCompleted = true,
     this.startDate,
     this.endDate,
     List<String>? tags,
-  })  : categoryIds = categoryIds ?? [],
+  })  : categoryKeys = categoryKeys ?? [],
         priorities = priorities ?? [],
         tags = tags ?? [];
 
   bool matchesTask(Task task) {
+    // Don't show deleted tasks
+    if (task.isDeleted) return false;
+
+    // Filter by completion status
     if (!showCompleted && task.isCompleted) return false;
-    if (categoryIds.isNotEmpty && !categoryIds.contains(task.categoryId)) {
+
+    // Filter by category
+    if (categoryKeys.isNotEmpty && !categoryKeys.contains(task.categoryKey)) {
       return false;
     }
+
+    // Filter by priority
     if (priorities.isNotEmpty && !priorities.contains(task.priority)) {
       return false;
     }
-    if (startDate != null && task.dueDate.isBefore(startDate!)) return false;
-    if (endDate != null && task.dueDate.isAfter(endDate!)) return false;
+
+    // Filter by date range
+    if (startDate != null && task.dueDate.isBefore(startDate!)) {
+      return false;
+    }
+    if (endDate != null && task.dueDate.isAfter(endDate!)) {
+      return false;
+    }
+
+    // Filter by tags
     if (tags.isNotEmpty && !tags.any((tag) => task.tags.contains(tag))) {
       return false;
     }
+
     return true;
-  }
-}
-
-// repositories/task_repository.dart
-class TaskRepository {
-  final Box<Task> _taskBox;
-  final Box<Category> _categoryBox;
-
-  TaskRepository(this._taskBox, this._categoryBox);
-
-  // CRUD operations
-  Future<void> addTask(Task task) async {
-    await _taskBox.add(task);
-  }
-
-  Future<void> updateTask(Task task) async {
-    await task.save();
-  }
-
-  Future<void> deleteTask(Task task) async {
-    task.isDeleted = true;
-    await task.save();
-  }
-
-  Future<void> permanentlyDeleteTask(Task task) async {
-    await task.delete();
-  }
-
-  // Queries
-  List<Task> getAllTasks({bool includeDeleted = false}) {
-    return _taskBox.values
-        .where((task) => includeDeleted || !task.isDeleted)
-        .toList();
-  }
-
-  List<Task> getTasksByCategory(String categoryId) {
-    return _taskBox.values
-        .where((task) => !task.isDeleted && task.categoryId == categoryId)
-        .toList();
-  }
-
-  List<Task> getOverdueTasks() {
-    return _taskBox.values
-        .where((task) => !task.isDeleted && task.isOverdue())
-        .toList();
-  }
-
-  List<Task> getTasksByFilter(TaskFilter filter) {
-    return _taskBox.values
-        .where((task) => !task.isDeleted && filter.matchesTask(task))
-        .toList();
   }
 }

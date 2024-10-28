@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 part 'category.g.dart';
 
-@HiveType(typeId: 2)
+@HiveType(typeId: 1)
 class Category extends HiveObject {
   @HiveField(0)
   String name;
@@ -35,7 +35,6 @@ class Category extends HiveObject {
   Color get categoryColor => Color(color);
 
   IconData get icon {
-    // Map string names to IconData
     final iconMap = {
       'work': Icons.work,
       'personal': Icons.person,
@@ -47,27 +46,5 @@ class Category extends HiveObject {
       'other': Icons.category,
     };
     return iconMap[iconName.toLowerCase()] ?? Icons.category;
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'name': name,
-      'description': description,
-      'color': color,
-      'iconName': iconName,
-      'createdAt': createdAt.toIso8601String(),
-      'isDeleted': isDeleted,
-    };
-  }
-
-  static Category fromMap(Map<String, dynamic> map) {
-    return Category(
-      name: map['name'],
-      description: map['description'],
-      color: map['color'],
-      iconName: map['iconName'],
-      createdAt: DateTime.parse(map['createdAt']),
-      isDeleted: map['isDeleted'],
-    );
   }
 }

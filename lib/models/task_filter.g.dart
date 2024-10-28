@@ -8,7 +8,7 @@ part of 'task_filter.dart';
 
 class TaskFilterAdapter extends TypeAdapter<TaskFilter> {
   @override
-  final int typeId = 3;
+  final int typeId = 4;
 
   @override
   TaskFilter read(BinaryReader reader) {
@@ -18,7 +18,7 @@ class TaskFilterAdapter extends TypeAdapter<TaskFilter> {
     };
     return TaskFilter(
       name: fields[0] as String,
-      categoryIds: (fields[1] as List?)?.cast<String>(),
+      categoryKeys: (fields[1] as List?)?.cast<dynamic>(),
       priorities: (fields[2] as List?)?.cast<Priority>(),
       showCompleted: fields[3] as bool,
       startDate: fields[4] as DateTime?,
@@ -34,7 +34,7 @@ class TaskFilterAdapter extends TypeAdapter<TaskFilter> {
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
-      ..write(obj.categoryIds)
+      ..write(obj.categoryKeys)
       ..writeByte(2)
       ..write(obj.priorities)
       ..writeByte(3)
