@@ -9,7 +9,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeInAnimation;
   late Animation<double> _slideAnimation;
@@ -143,26 +144,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             );
           },
         ),
-      ),
-    );
-  }
-}
-
-// Usage example:
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: SplashScreen(
-        onAnimationComplete: () {
-          // Navigate to your main screen here
-          // Example:
-          // Navigator.of(context).pushReplacement(
-          //   MaterialPageRoute(builder: (_) => MainScreen()),
-          // );
-        },
       ),
     );
   }
