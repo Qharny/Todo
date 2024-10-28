@@ -1,0 +1,442 @@
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
+  late AnimationController _fabAnimationController;
+  late Animation<double> _fabScaleAnimation;
+  final TextEditingController _taskController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  DateTime? _selectedDueDate;
+  Priority _selectedPriority = Priority.medium;
+  Category? _selectedCategory;
+  List<String> _selectedTags = [];
+  
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            "TaskMana",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          elevation: 0,
+          actions: [
+            IconButton(
+              onPressed: _toggleTheme,
+              icon: Icon(
+                settingsBox.get('darkMode', defaultValue: false)
+                    ? Icons.dark_mode
+                    : Icons.light_mode,
+              ),
+            ),
+          ],
+        ),
+        body: ValueListenableBuilder(
+          valueListenable: Hive.box('tasks').listenable(),
+          builder: (context, Box box, _) {
+            if (box.isEmpty) {
+              return _buildEmptyState();
+            }
+            return _buildTaskList(box);
+          },
+        ),
+        floatingActionButton: ScaleTransition(
+          scale: _fabScaleAnimation,
+          child: FloatingActionButton.extended(
+            onPressed: _showAddTaskDialog,
+            label: const Text('Add Task'),
+            icon: const Icon(Icons.add),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.task_alt,
+            size: 64,
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No tasks yet',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaskList(Box box) {
+    final tasks = box.values
+        .whereType<Task>()
+        .where((task) => !task.isDeleted)
+        .toList()
+      ..sort((a, b) {
+        if (a.isCompleted != b.isCompleted) {
+          return a.isCompleted ? 1 : -1;
+        }
+        if (a.priority != b.priority) {
+          return b.priority.index.compareTo(a.priority.index);
+        }
+        return a.dueDate.compareTo(b.dueDate);
+      });
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: tasks.length,
+      itemBuilder: (context, index) {
+        final task = tasks[index];
+        return _buildTaskCard(task, box);
+      },
+    );
+  }
+
+  Widget _buildTaskCard(Task task, Box box) {
+    final Category? category = task.categoryKey != null 
+        ? categoriesBox.get(task.categoryKey) 
+        : null;
+        
+    final Color priorityColor = _getPriorityColor(task.priority);
+    final bool isOverdue = task.isOverdue();
+
+    return Dismissible(
+      key: Key(task.id?.toString() ?? UniqueKey().toString()),
+      background: Container(
+        decoration: BoxDecoration(
+          color: Colors.red.shade400,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) {
+        task.isDeleted = true;
+        task.save();
+      },
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: InkWell(
+          onTap: () => _showTaskDetails(task),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(
+                  color: priorityColor,
+                  width: 4,
+                ),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ListTile(
+                  leading: Checkbox(
+                    value: task.isCompleted,
+                    onChanged: (bool? value) {
+                      if (value ?? false) {
+                        task.markAsCompleted();
+                      } else {
+                        task.markAsIncomplete();
+                      }
+                      task.save();
+                    },
+                  ),
+                  title: Text(
+                    task.title,
+                    style: TextStyle(
+                      decoration: task.isCompleted
+                          ? TextDecoration.lineThrough
+                          : null,
+                      color: task.isCompleted
+                          ? Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6)
+                          : null,
+                    ),
+                  ),
+                  subtitle: Text(
+                    task.description ?? '',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 16,
+                            color: isOverdue ? Colors.red : null,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            DateFormat('MMM dd, yyyy').format(task.dueDate),
+                            style: TextStyle(
+                              color: isOverdue ? Colors.red : null,
+                              fontWeight: isOverdue ? FontWeight.bold : null,
+                            ),
+                          ),
+                          if (category != null) ...[
+                            const SizedBox(width: 16),
+                            Icon(
+                              category.icon,
+                              size: 16,
+                              color: category.categoryColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(category.name),
+                          ],
+                        ],
+                      ),
+                      if (task.tags.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 4,
+                          children: task.tags.map((tag) => Chip(
+                            label: Text(
+                              tag,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
+                          )).toList(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAddTaskDialog() {
+    _selectedDueDate = DateTime.now().add(const Duration(days: 1));
+    _selectedPriority = Priority.medium;
+    _selectedCategory = null;
+    _selectedTags = [];
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'New Task',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _taskController,
+                  decoration: InputDecoration(
+                    labelText: 'Title',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _descriptionController,
+                  decoration: InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ListTile(
+                        title: const Text('Due Date'),
+                        subtitle: Text(
+                          DateFormat('MMM dd, yyyy').format(_selectedDueDate!),
+                        ),
+                        onTap: () async {
+                          final DateTime? picked = await showDatePicker(
+                            context: context,
+                            initialDate: _selectedDueDate!,
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime(2101),
+                          );
+                          if (picked != null) {
+                            setState(() => _selectedDueDate = picked);
+                          }
+                        },
+                      ),
+                    ),
+                    Expanded(
+                      child: DropdownButtonFormField<Priority>(
+                        value: _selectedPriority,
+                        decoration: InputDecoration(
+                          labelText: 'Priority',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        items: Priority.values.map((priority) {
+                          return DropdownMenuItem<Priority>(
+                            value: priority,
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: _getPriorityColor(priority),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(priority.name.toUpperCase()),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (Priority? value) {
+                          if (value != null) {
+                            setState(() => _selectedPriority = value);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ValueListenableBuilder(
+                  valueListenable: categoriesBox.listenable(),
+                  builder: (context, Box categoriesBox, _) {
+                    List<Category> categories = categoriesBox.values
+                        .cast<Category>()
+                        .where((category) => !category.isDeleted)
+                        .toList();
+                    
+                    return DropdownButtonFormField<Category>(
+                      value: _selectedCategory,
+                      decoration: InputDecoration(
+                        labelText: 'Category',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      items: categories.map((Category category) {
+                        return DropdownMenuItem<Category>(
+                          value: category,
+                          child: Row(
+                            children: [
+                              Icon(
+                                category.icon,
+                                color: category.categoryColor,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(category.name),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (Category? value) {
+                        setState(() => _selectedCategory = value);
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_taskController.text.isNotEmpty) {
+                      final task = Task(
+                        id: UniqueKey().toString(),
+                        title: _taskController.text,
+                        description: _descriptionController.text,
+                        dueDate: _selectedDueDate!,
+                        priority: _selectedPriority,
+                        categoryKey: _selectedCategory?.key,
+                        tags: _selectedTags,
+                      );
+                      final tasksBox = Hive.box('tasks');
+                      tasksBox.add(task);
+                      _taskController.clear();
+                      _descriptionController.clear();
+                      Navigator.pop(context);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Add Task'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getPriorityColor(Priority priority) {
+    switch (priority) {
+      case Priority.low:
+        return Colors.green;
+      case Priority.medium:
+        return Colors.orange;
+      case Priority.high:
+        return Colors.red;
+      case Priority.urgent:
+        return Colors.purple;
+    }
+  }
+
+  void _showTaskDetails(Task task) {
+    // Implement task details view
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        // Task details UI
+      ),
+    );
+  }
+}

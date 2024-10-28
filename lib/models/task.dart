@@ -33,8 +33,15 @@ class Task extends HiveObject {
 
   @HiveField(9)
   bool isDeleted;
+  
+  @HiveField(10)
+  var id;
+
+  @HiveField(11)
+  dynamic categoryKey;
 
   Task({
+    this.id,
     required this.title,
     this.description,
     required this.dueDate,
@@ -45,8 +52,8 @@ class Task extends HiveObject {
     this.priority = Priority.medium,
     List<String>? tags,
     this.isDeleted = false,
-  })  : this.createdAt = createdAt ?? DateTime.now(),
-        this.tags = tags ?? [];
+  })  : createdAt = createdAt ?? DateTime.now(),
+        tags = tags ?? [];
 
   // Helper methods
   void markAsCompleted() {
@@ -91,7 +98,7 @@ class Task extends HiveObject {
       categoryId: map['categoryId'],
       priority: Priority.values[map['priority']],
       tags: List<String>.from(map['tags']),
-      isDeleted: map['isDeleted'],
+      isDeleted: map['isDeleted'], id: null,
     );
   }
 }

@@ -30,7 +30,7 @@ class Category extends HiveObject {
     required this.iconName,
     DateTime? createdAt,
     this.isDeleted = false,
-  }) : this.createdAt = createdAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now();
 
   Color get categoryColor => Color(color);
 
