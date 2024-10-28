@@ -14,7 +14,7 @@ class AppTheme {
       primary: AppColors.primary,
       secondary: AppColors.secondary,
       tertiary: AppColors.tertiary,
-      background: AppColors.bg,
+      surface: AppColors.bg,
       error: AppColors.error,
     ),
     
@@ -98,7 +98,7 @@ class AppTheme {
       primary: AppColors.darkPrimary,
       secondary: AppColors.darkSecondary,
       tertiary: AppColors.darkTertiary,
-      background: AppColors.darkBg,
+      surface: AppColors.darkBg,
       error: AppColors.error,
     ),
     
